@@ -1,8 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
-using UnityEngine;
 
 /// <summary>
 /// Custom log system that allow to choose when to display message
@@ -10,21 +8,14 @@ using UnityEngine;
 /// </summary>
 public static class WPLogger
 {
-	const string FILE_NAME = "WPLOG";
-	const string EXTENSION = ".txt";
-
-	/// <summary>
-	/// Reference to an UI text class to display in scene logs. Only used for dev build.
-	/// </summary>
-	public static UnityEngine.UI.Text debugTextUI;
 	/// <summary>
 	/// String containing all logs
 	/// </summary>
-	static StringBuilder globalText = new StringBuilder();
+	public static StringBuilder LogHistory { get; private set; } = new StringBuilder();
 	/// <summary>
 	/// List of active tags (tag can be any string)
 	/// </summary>
-	static List<string> activeTags = new List<string>() { WPTag.INFO, WPTag.IMPORTANT, WPTag.SERVER, WPTag.CLIENT };
+	static List<string> activeTags = new List<string>() { WPTag.FORCE, WPTag.INFO, WPTag.IMPORTANT };
 	/// <summary>
 	/// Write log to Debug unity class
 	/// </summary>
@@ -32,27 +23,25 @@ public static class WPLogger
 	/// <summary>
 	/// Write log to local global log
 	/// </summary>
-	public static bool LogToGlobal = true;
+	public static bool LogToHistory = true;
 	/// <summary>
 	/// Diplay tag on front of log
 	/// </summary>
-	public static bool DisplayHeader = true;
-	/// <summary>
-	/// Display in header even inactive tags
-	/// </summary>
-	public static bool DisplayHeaderAllTag = true;
+	public static bool DisplayTagHeader = true;
 	/// <summary>
 	/// Display time on front of log
 	/// </summary>
 	public static bool LogTime = false;
+
+	public delegate void WPLoggerEvent(string logText);
 	/// <summary>
 	/// Called when a new log is processed
 	/// </summary>
-	public static Action<string> OnLogged;
+	public static WPLoggerEvent OnLogged;
 	/// <summary>
 	/// Called when a new error is processed
 	/// </summary>
-	public static Action<string> OnErrorLogged;
+	public static WPLoggerEvent OnErrorLogged;
 
 	[Conditional("DEVELOPMENT_BUILD")]
 	[Conditional("UNITY_EDITOR")]
@@ -100,18 +89,18 @@ public static class WPLogger
 		if (tags != null && tags.Length > 0)
 		{
 			if (!HasActiveTag(tags)) return;
-			text = "[" + String.Join(',', tags) + "] " + text;
+			if (DisplayTagHeader)
+				text = "[" + System.String.Join(',', tags) + "] " + text;
 		}
 
 		if (LogTime)
 		{
-			text = "(" + GetTime() + ")" + text;
+			text = "(" + GetTime() + ") " + text;
 		}
 
-		if (LogToGlobal)
+		if (LogToHistory)
 		{
-			globalText.AppendLine(text);
-			RefreshDebugUI();
+			LogHistory.AppendLine(text);
 		}
 
 		if (LogToUnity)
@@ -126,25 +115,12 @@ public static class WPLogger
 	{
 		foreach (var t in tags)
 		{
-			if (t == "F") return true; // F tag force to always display the log
-
 			if (activeTags.Contains(t))
 			{
 				return true;
 			}
 		}
 		return false;
-	}
-
-	[Conditional("DEVELOPMENT_BUILD")]
-	[Conditional("UNITY_EDITOR")]
-	[Conditional("WPLOG")]
-	static void RefreshDebugUI()
-	{
-		if (debugTextUI != null)
-		{
-			debugTextUI.text = globalText.ToString();
-		}
 	}
 
 	/// <summary>
@@ -156,18 +132,18 @@ public static class WPLogger
 	{
 		if (tags != null && tags.Length > 0)
 		{
-			text = "[" + String.Join(',', tags) + "] " + text;
+			if (DisplayTagHeader)
+				text = "[" + System.String.Join(',', tags) + "] " + text;
 		}
 
 		if (LogTime)
 		{
-			text = "(" + GetTime() + ")" + text;
+			text = "(" + GetTime() + ") " + text;
 		}
 
-		if (LogToGlobal)
+		if (LogToHistory)
 		{
-			globalText.AppendLine("<color=red>" + text + "</color>");
-			RefreshDebugUI();
+			LogHistory.AppendLine(text);
 		}
 
 		UnityEngine.Debug.LogError(text);
@@ -176,24 +152,12 @@ public static class WPLogger
 
 	static string GetTime()
 	{
-		return DateTime.Now.ToString("HH:mm:ss");
-	}
-
-	public static void Save(string add = "")
-	{
-		string filepath = Application.persistentDataPath + "/" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_" + FILE_NAME + EXTENSION;
-		System.IO.Directory.CreateDirectory(Application.persistentDataPath);
-		System.IO.File.WriteAllText(filepath, globalText.ToString());
-		Log("Log file created at -> " + filepath, "F", "WPLOGGER");
+		return System.DateTime.Now.ToString("HH:mm:ss");
 	}
 
 	public static void Clear()
 	{
-		globalText.Clear();
-		if (debugTextUI != null)
-		{
-			debugTextUI.text = "";
-		}
+		LogHistory.Clear();
 	}
 
 	[Conditional("DEVELOPMENT_BUILD")]
@@ -201,7 +165,7 @@ public static class WPLogger
 	[Conditional("WPLOG")]
 	public static void SetTagActive(string tag)
 	{
-		if (!activeTags.Contains(tag))
+		if (!string.IsNullOrWhiteSpace(tag) && !activeTags.Contains(tag))
 		{
 			activeTags.Add(tag);
 		}
@@ -212,31 +176,34 @@ public static class WPLogger
 	[Conditional("WPLOG")]
 	public static void SetTagDisabled(string tag)
 	{
-		activeTags.Remove(tag);
+		if (!string.IsNullOrWhiteSpace(tag) && tag != "F")  // F tag can't be disabled
+		{
+			activeTags.Remove(tag);
+		}
 	}
 
 	public static bool IsTagActive(string tag)
 	{
+		if (string.IsNullOrWhiteSpace(tag)) return false;
 		return activeTags.Contains(tag);
 	}
 }
 
 /// <summary>
-/// This static class only contain default active tags.
-/// You can use any string as tag.
+/// This static class only contain some possible tags.
+/// You can use any other string as tag.
+/// Tips: Make your own static class that contain const string for your own tags
 /// </summary>
 public static class WPTag
 {
 	// Special tag that always display a log
-	public static string FORCE = "F";
+	public const string FORCE = "F";
 
-	// Examples of usable tag
-	public static string INFO = "INFO";
-	public static string IMPORTANT = "IMP";
-	public static string SERVER = "SERVER";
-	public static string CLIENT = "CLIENT";
-	public static string NETWORK = "NETWORK";
-	public static string STATS = "STATS";
-	public static string PLAYER = "PLAYER";
-	public static string UI = "UI";
+	// Examples of tags
+	public const string INFO = "INFO";
+	public const string WARNING = "WARN";
+	public const string IMPORTANT = "IMP";
+	public const string ANALYTIC = "ANALYTIC";
+	public const string PLAYER = "PLAYER";
+	public const string UI = "UI";
 }

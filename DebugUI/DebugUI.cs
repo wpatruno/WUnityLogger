@@ -1,39 +1,105 @@
-using System.Collections;
-using System.Collections.Generic;
+using System;
+using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
-public class DebugUI : MonoBehaviour
+namespace WPLog.Debug
 {
-	public GameObject canvas;
-	public ScrollRect scroll;
-	public Text debugText;
-	bool isDown;
-
-	void Start()
+	public class DebugUI : MonoBehaviour
 	{
+		const string FILE_NAME = "WPLOG";
+		const string EXTENSION = ".txt";
 
-		WPLogger.debugTextUI = debugText;
-		canvas.SetActive(false);
-		WPLogger.OnLogged += ScrollDown;
-	}
+		[SerializeField]
+		GameObject canvas;
+		[SerializeField]
+		ScrollRect scroll;
+		[SerializeField]
+		Toggle toggleGoDown;
+		[SerializeField]
+		Text debugText;
+		bool isDown;
 
-	void Update()
-	{
-		if (Keyboard.current.f1Key.isPressed)
+		void Start()
 		{
-			if (!isDown) canvas.SetActive(!canvas.activeSelf);
-			isDown = true;
+			debugText.text = "*** *** *** START - " + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + " *** *** ***" + Environment.NewLine;
+			canvas.SetActive(false);
+			WPLogger.OnLogged += OnNewLog;
+			WPLogger.OnErrorLogged += OnNewLogError;
 		}
-		else
-		{
-			isDown = false;
-		}
-	}
 
-	public void ScrollDown(string n)
-	{
-		scroll.verticalNormalizedPosition = 0f;
+		void Update()
+		{
+#if ENABLE_INPUT_SYSTEM
+
+			if (Keyboard.current.f12Key.isPressed)
+			{
+				if (!isDown) canvas.SetActive(!canvas.activeSelf);
+				isDown = true;
+			}
+			else
+			{
+				isDown = false;
+			}
+
+			//if (Keyboard.current.f11Key.isPressed) WPLogger.Log("TEST LOG TEST LOG");
+
+#else
+
+			if (Input.GetKeyDown(KeyCode.F12))
+			{
+				canvas.SetActive(!canvas.activeSelf);
+			}
+
+			//if (Input.GetKey(KeyCode.F11)) WPLogger.Log("TEST LOG TEST LOG");
+
+#endif
+		}
+
+		void OnNewLog(string logText)
+		{
+			debugText.text += logText + Environment.NewLine;
+			if (toggleGoDown.isOn)
+				scroll.verticalNormalizedPosition = 0f;
+		}
+
+		void OnNewLogError(string logText)
+		{
+			debugText.text += "<color=red>" + logText + "</color>" + Environment.NewLine;
+			if (toggleGoDown.isOn)
+				scroll.verticalNormalizedPosition = 0f;
+		}
+
+		public void Clear()
+		{
+			debugText.text = "..." + Environment.NewLine;
+			WPLogger.Clear();
+		}
+
+		public void Save(bool openFolder = false)
+		{
+			try
+			{
+				string filepath = Application.persistentDataPath + "/" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_" + FILE_NAME + EXTENSION;
+				System.IO.Directory.CreateDirectory(Application.persistentDataPath);
+				System.IO.File.WriteAllText(filepath, WPLogger.LogHistory.ToString());
+				WPLogger.Log("Log file created at -> " + filepath, WPTag.FORCE, "DEBUG");
+				if (openFolder) OpenSaveFolder();
+			}
+			catch (System.Exception e)
+			{
+				WPLogger.Error(e.Message);
+			}
+		}
+
+		public void OpenSaveFolder()
+		{
+#if UNITY_STANDALONE_WIN
+			Process.Start("explorer.exe", Application.persistentDataPath.Replace('/', '\\'));
+#else
+			WPLogger.Error("Open folder only available on Windows for now");
+#endif
+		}
 	}
 }
