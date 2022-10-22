@@ -1,7 +1,9 @@
 # WPLogger
 
 ## Introduction
-This project is a better logging tool for Unity.
+
+Well's Personal Logger is a better logging system for Unity in C#.
+
 _I am sure other logging project can be better but I had fun making my own._
 
 This project has two main feature : 
@@ -29,7 +31,9 @@ Error logs are never stripped.
 
 ## Tags
 Tags are usefull when the project get bigger and contain lot of differents modules and tools.
+
 Each tool and modules should add a tag unique to them when logging, this allow to only display logs that are currently needed for working.
+
 A tag can be any string, but they are case sensitives and only some default tags are enabled.
 
 The special tag "F" allow to force display the log even if his tags are disabled.
@@ -59,7 +63,9 @@ WPLogger.Log("Hello !", varMyTag, "OtherTag");
 
 ## FLog
 Fast&Force log doesn't implement the tag, events, history, time functions.
+
 It only log to Unity console for better performance.
+
 This function is still stripped from build.
 
 ## Error Log
