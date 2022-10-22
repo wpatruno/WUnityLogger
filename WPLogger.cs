@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
@@ -34,6 +35,7 @@ public static class WPLogger
 	public static bool LogTime = false;
 
 	public delegate void WPLoggerEvent(string logText);
+
 	/// <summary>
 	/// Called when a new log is processed
 	/// </summary>
@@ -42,6 +44,15 @@ public static class WPLogger
 	/// Called when a new error is processed
 	/// </summary>
 	public static WPLoggerEvent OnErrorLogged;
+
+	public static void ApplySettings(WPLoggerData.Settings settings)
+	{
+		LogToUnity = settings.logToUnity;
+		LogToHistory = settings.logToHistory;
+		DisplayTagHeader = settings.displayTagHeader;
+		LogTime = settings.logTime;
+		activeTags = new List<string>(settings.defaultActiveTags);
+	}
 
 	[Conditional("DEVELOPMENT_BUILD")]
 	[Conditional("UNITY_EDITOR")]
@@ -186,6 +197,11 @@ public static class WPLogger
 	{
 		if (string.IsNullOrWhiteSpace(tag)) return false;
 		return activeTags.Contains(tag);
+	}
+
+	public static string[] GetTags()
+	{
+		return activeTags.ToArray();
 	}
 }
 

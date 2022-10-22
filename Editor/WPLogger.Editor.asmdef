@@ -1,0 +1,16 @@
+{
+    "name": "WPLogger.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:7bb1506d336a8af46b91eed99b50f7c7"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
