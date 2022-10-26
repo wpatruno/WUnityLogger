@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 /// <summary>
@@ -20,7 +21,7 @@ public class WPLoggerData : ScriptableObject
 		public string[] defaultActiveTags;
 		public bool logToUnity;
 		public bool logToHistory;
-		public bool displayTagHeader;
+		public bool logTagHeader;
 		public bool logTime;
 	}
 
@@ -43,12 +44,17 @@ public class WPLoggerData : ScriptableObject
 #endif
 	}
 
-	public static void GlobalApply()
+	public static Settings GetCurrentSettings()
 	{
 		WPLoggerData data = Resources.Load<WPLoggerData>(DATA_FILE_NAME);
-		if (data != null)
-		{
-			WPLogger.ApplySettings(data.GetSettings());
-		}
+		return data.GetSettings();
 	}
+}
+
+[AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
+public class WPLoggerTag : Attribute
+{
+	public WPLoggerTag(int b) { Bar = b; }
+	public int Bar { get; set; }
+	//Class Members
 }

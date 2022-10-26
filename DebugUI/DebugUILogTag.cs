@@ -11,12 +11,12 @@ namespace WPLog.Debug
 
 		protected virtual void Start()
 		{
-			Create(WPTag.INFO);
-			Create(WPTag.WARNING);
-			Create(WPTag.IMPORTANT);
-			Create(WPTag.ANALYTIC);
-			Create(WPTag.UI);
-			Create(WPTag.PLAYER);
+			Create(WPMainTag.INFO);
+			Create(WPMainTag.WARNING);
+			Create(WPMainTag.IMPORTANT);
+			Create(WPMainTag.ANALYTIC);
+			Create(WPMainTag.UI);
+			Create(WPMainTag.PLAYER);
 		}
 
 		protected void Create(string tag)

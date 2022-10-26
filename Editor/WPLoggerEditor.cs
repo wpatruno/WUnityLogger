@@ -1,25 +1,53 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
+
+
+public static class WPLoggerEditorUtility
+{
+	public static T GetAssemblyAttribute<T>(System.AppDomain appDomain) where T : Attribute
+	{
+		System.Reflection.Assembly[] assemblys = appDomain.GetAssemblies();
+		foreach (var ass in assemblys)
+		{
+			//WPLogger.Log(ass.FullName);
+			object[] attributes = ass.GetCustomAttributes(typeof(T), true);
+
+			if (attributes == null || attributes.Length == 0)
+				continue;
+
+			foreach (var item in attributes)
+			{
+				//WPLogger.Log(item.ToString());
+			}
+			return attributes.OfType<T>().SingleOrDefault();
+		}
+		return null;
+	}
+}
 
 public class WPLoggerEditor : EditorWindow
 {
 	public const string CONDITIONAL = "WPLOG";
 	const string CSC_FILE = "Assets/csc.rsp";
 	const string CSC_LINE = "-define:";
-	const string DEFAULT_DATA_FILE_PATH = "Assets/Resources/";
+	const string DEFAULT_DATA_FILE_PATH = "Assets/Tools/WPLoggerData/";
 	const string DATA_FILE_EXTENSION = ".asset";
-
-	static string[] DEFAULT_TAGS = new string[] { WPTag.INFO, WPTag.WARNING, WPTag.IMPORTANT, WPLoggerData.TAG };
-
+	const string EDITORKEY_PATH = "WPLogPath";
+	static string[] DEFAULT_TAGS = new string[] { WPMainTag.INFO, WPMainTag.WARNING, WPMainTag.IMPORTANT, WPLoggerData.TAG };
+	List<string> customTags;
+	string localDataPath;
 	string newFilePath;
-	int windowsTab;
+	int mainTab;
+	int settingsTab;
 	WPLoggerData loggerData;
 	int tempStrippingMode;
-	int tempWindowsTab;
+	int _tempSettingsTab = -1;
 	int tempIndexDefTag;
 
 	SerializedObject serializedObject;
@@ -43,10 +71,38 @@ public class WPLoggerEditor : EditorWindow
 		titleContent = new GUIContent("WP-LOGGER", "Homemade logging tool");
 		loggerData = Resources.Load<WPLoggerData>(WPLoggerData.DATA_FILE_NAME);
 		newFilePath = DEFAULT_DATA_FILE_PATH;
-		serializedObject = new SerializedObject(loggerData);
-		WPLoggerData.GlobalApply();
-		RefreshSerialized();
+		if (loggerData)
+		{
+			serializedObject = new SerializedObject(loggerData);
+			WPLoggerData.GetCurrentSettings();
+			RefreshSerialized();
+
+			if (!PlayerPrefs.HasKey(EDITORKEY_PATH))
+			{
+				localDataPath = AssetDatabase.GetAssetPath(loggerData);
+				if (!string.IsNullOrWhiteSpace(localDataPath))
+				{
+					List<string> splitted = new List<string>(localDataPath.Split('/'));
+					splitted.RemoveAt(splitted.Count - 1); // remove file
+					splitted.RemoveAt(splitted.Count - 1); // remove resource folder
+					localDataPath = string.Join('/', splitted);
+					WPLogger.Log(localDataPath);
+					PlayerPrefs.SetString(EDITORKEY_PATH, localDataPath);
+
+				}
+			}
+			else
+			{
+				localDataPath = PlayerPrefs.GetString(EDITORKEY_PATH);
+			}
+		}
+		LoadCustomTags();
+		var a = WPLoggerEditorUtility.GetAssemblyAttribute<WPLoggerTag>(System.AppDomain.CurrentDomain);
+		if (a != null)
+			Debug.Log(a.ToString());
 	}
+
+
 
 	void OnGUI()
 	{
@@ -68,41 +124,43 @@ public class WPLoggerEditor : EditorWindow
 
 		EditorGUILayout.EndHorizontal();
 		EditorGUILayout.BeginHorizontal();
-		windowsTab = GUILayout.SelectionGrid(windowsTab, new string[] { "Editor", "Editor Runtime", "Dev", "Release" }, 4, EditorStyles.toolbarButton);
-		if (GUILayout.Button("Exit", EditorStyles.toolbarButton, GUILayout.Width(50)))
-		{
-			EditorGUILayout.EndHorizontal();
-			this.Close();
-			return;
-		}
+		mainTab = GUILayout.SelectionGrid(mainTab, new string[] { "Live", "Tags", "Settings" }, 3, EditorStyles.toolbarButton);
 		EditorGUILayout.EndHorizontal();
 
 		// Select the active settings tab
 
-		if (tempWindowsTab != windowsTab)
-		{
-			tempWindowsTab = windowsTab;
-			if (windowsTab != 0) RefreshSerialized();
-		}
 
-		// Display the selected settings
-		if (windowsTab == 0)
+		if (mainTab == 0)
 		{
-			EditorGUILayout.HelpBox("This only display current WPLogger settings in Editor", MessageType.Info);
+			// Display live WPLogger Settings
+			EditorGUILayout.HelpBox("This display current WPLogger settings (Editable when running))", MessageType.Info);
 			EditorGUILayout.LabelField("LogToUnity", WPLogger.LogToUnity.ToString());
 			EditorGUILayout.LabelField("LogToHistory", WPLogger.LogToHistory.ToString());
-			EditorGUILayout.LabelField("DisplayTagHeader", WPLogger.DisplayTagHeader.ToString());
+			EditorGUILayout.LabelField("LogTagHeader", WPLogger.LogTagHeader.ToString());
 			EditorGUILayout.LabelField("LogTime", WPLogger.LogTime.ToString());
 			EditorGUILayout.Popup("Tag List", 0, WPLogger.GetTags());
 		}
-		else if (serialSetting != null)
+		else if (mainTab == 2)
 		{
+			// Display default settings
+			settingsTab = GUILayout.SelectionGrid(settingsTab, new string[] { "Editor", "Dev", "Release" }, 3, EditorStyles.toolbarButton);
+
+			if (_tempSettingsTab != settingsTab)
+			{
+				_tempSettingsTab = settingsTab;
+				RefreshSerialized();
+			}
 			GUISettingDisplay();
+		}
+		else if (mainTab == 1)
+		{
+			// Display custom Tags
+			GUITags();
 		}
 
 		if (serializedObject.ApplyModifiedProperties())
 		{
-			WPLoggerData.GlobalApply();
+			WPLoggerData.GetCurrentSettings();
 			// refresh CSC file if logMode changed
 			if (tempStrippingMode != serialStripping.intValue)
 			{
@@ -114,16 +172,19 @@ public class WPLoggerEditor : EditorWindow
 
 	void GUISettingDisplay()
 	{
+		if (GUILayout.Button("APPLY TO LIVE", GUILayout.Width(110))) ApplyCurrentToLive();
 		EditorGUILayout.PropertyField(serialLogToUnity);
 		EditorGUILayout.PropertyField(serialLogToHistory);
 		EditorGUILayout.PropertyField(serialDisplayTagHeader);
 		EditorGUILayout.PropertyField(serialLogTime);
 
 		EditorGUILayout.Space(10);
-		EditorGUILayout.LabelField("TAG ACTIVE LIST");
 		EditorGUILayout.BeginHorizontal();
+		EditorGUILayout.LabelField("ACTIVE TAG LIST");
+		GUILayout.FlexibleSpace();
 		if (GUILayout.Button("COPY", GUILayout.Width(60))) CopyListToClipboard();
 		if (GUILayout.Button("PASTE", GUILayout.Width(60))) PastClipboardToList();
+
 		EditorGUILayout.EndHorizontal();
 
 		EditorGUILayout.PropertyField(serialActiveList);
@@ -160,6 +221,13 @@ public class WPLoggerEditor : EditorWindow
 		WPLogger.Log("Tag clipboard added to list");
 	}
 
+	void ApplyCurrentToLive()
+	{
+
+		WPLogger.Log("Apply to live", WPLoggerData.TAG);
+	}
+
+
 	void AddTagToActive(string tag)
 	{
 		for (int i = 0; i < serialActiveList.arraySize; i++)
@@ -173,8 +241,12 @@ public class WPLoggerEditor : EditorWindow
 
 	void GUIDataCreation()
 	{
-		EditorGUILayout.LabelField("Missing WPLogger Data !");
+		EditorGUILayout.HelpBox("Select a path inside Assets folder where WPLogger generated files will be created !", MessageType.Warning);
+		EditorGUILayout.HelpBox("Generate 1 Scriptable file for settings", MessageType.Info);
+		EditorGUILayout.HelpBox("(Optional) Generate 1 text file and 1 script file for custom tags", MessageType.Info);
+		GUILayout.Space(10);
 		newFilePath = EditorGUILayout.TextField("Resources Folder Path:", newFilePath);
+		GUILayout.Space(10);
 		if (GUILayout.Button("Create"))
 		{
 			CreateDataAsset(newFilePath);
@@ -186,11 +258,11 @@ public class WPLoggerEditor : EditorWindow
 		serialStripping = serializedObject.FindProperty("logMode");
 		tempStrippingMode = serialStripping.intValue;
 
-		if (windowsTab == 1)
+		if (settingsTab == 0)
 		{
 			serialSetting = serializedObject.FindProperty("editorSettings");
 		}
-		else if (windowsTab == 2)
+		else if (settingsTab == 1)
 		{
 			serialSetting = serializedObject.FindProperty("devBuildSettings");
 		}
@@ -201,35 +273,41 @@ public class WPLoggerEditor : EditorWindow
 
 		serialLogToUnity = serialSetting.FindPropertyRelative("logToUnity");
 		serialLogToHistory = serialSetting.FindPropertyRelative("logToHistory");
-		serialDisplayTagHeader = serialSetting.FindPropertyRelative("displayTagHeader");
+		serialDisplayTagHeader = serialSetting.FindPropertyRelative("logTagHeader");
 		serialLogTime = serialSetting.FindPropertyRelative("logTime");
 
 		serialActiveList = serialSetting.FindPropertyRelative("defaultActiveTags");
 		if (serialActiveList.arraySize == 0)
 		{
-			AddTagToActive(WPTag.INFO);
-			AddTagToActive(WPTag.WARNING);
-			AddTagToActive(WPTag.IMPORTANT);
+			AddTagToActive(WPMainTag.INFO);
+			AddTagToActive(WPMainTag.WARNING);
+			AddTagToActive(WPMainTag.IMPORTANT);
 			AddTagToActive(WPLoggerData.TAG);
 		}
 	}
 
 	void CreateDataAsset(string path)
 	{
+		if (!path.Contains("Assets"))
+		{
+			WPLogger.LogError("The path is not inside Assets folder !");
+		}
 		if (!path.EndsWith('/') && !path.EndsWith('\\')) path += "/";
-		if (!path.EndsWith("Resources/") && !path.EndsWith(@"Resources\")) path += "Resources/";
 
 		try
 		{
 			Directory.CreateDirectory(path);
+			PlayerPrefs.SetString(EDITORKEY_PATH, path);
+			string resPath = path + "Resources/";
+			Directory.CreateDirectory(resPath);
 			loggerData = new WPLoggerData();
-			AssetDatabase.CreateAsset(loggerData, path + WPLoggerData.DATA_FILE_NAME + DATA_FILE_EXTENSION);
+			AssetDatabase.CreateAsset(loggerData, resPath + WPLoggerData.DATA_FILE_NAME + DATA_FILE_EXTENSION);
 			AssetDatabase.SaveAssetIfDirty(loggerData);
 			RefreshSerialized();
 		}
 		catch (System.Exception e)
 		{
-			WPLogger.Error("WPLogger data creation failed with error:\n" + e.Message, WPLoggerData.TAG);
+			WPLogger.LogError("WPLogger data creation failed with error:\n" + e.Message, WPLoggerData.TAG);
 		}
 	}
 
@@ -246,7 +324,6 @@ public class WPLoggerEditor : EditorWindow
 			// Remove line from CSC
 			if (!File.Exists(CSC_FILE)) return;
 			var linesToKeep = File.ReadLines(CSC_FILE).Where(line => !line.EndsWith(CONDITIONAL)).ToArray();
-			foreach (var item in linesToKeep) WPLogger.Log(item);
 			File.WriteAllLines(CSC_FILE, linesToKeep);
 		}
 		else
@@ -266,5 +343,107 @@ public class WPLoggerEditor : EditorWindow
 		// FORCE REFRESH
 		AssetDatabase.ImportAsset(CSC_FILE, ImportAssetOptions.ForceUpdate);
 		AssetDatabase.Refresh();
+	}
+
+	string newTag;
+	Vector2 tagScrollView;
+	const string TAG_TEXT_FILE_NAME = "tags.txt";
+	const string TAG_SCRIPT_FILE_NAME = "WPTag.cs";
+	void GUITags()
+	{
+		tagScrollView = EditorGUILayout.BeginScrollView(tagScrollView);
+		if (customTags.Count == 0)
+		{
+			EditorGUILayout.HelpBox("Creating custom tags here is optionnal, this will generate a new static script file with tags as [const string] variables.\n"
+						+ "You can skip this page and create your own script/variables or just use simple strings.", MessageType.Info);
+		}
+		else
+		{
+			EditorGUILayout.HelpBox("To use your custom tag:  WPTag.YOURTAG", MessageType.Info);
+		}
+		for (int i = 0; i < customTags.Count; i++)
+		{
+			EditorGUILayout.BeginHorizontal();
+			customTags[i] = EditorGUILayout.TextField(customTags[i]);
+			if (GUILayout.Button("X", GUILayout.Width(50)))
+			{
+				customTags.RemoveAt(i);
+				i--;
+			}
+			EditorGUILayout.EndHorizontal();
+		}
+		EditorGUILayout.EndScrollView();
+		GUILayout.FlexibleSpace();
+		EditorGUILayout.BeginHorizontal();
+		newTag = EditorGUILayout.TextField(newTag);
+		if (GUILayout.Button("Add", GUILayout.Width(80)))
+		{
+			if (!customTags.Contains(newTag) && !string.IsNullOrWhiteSpace(newTag))
+				customTags.Add(newTag);
+			newTag = "";
+		}
+		EditorGUILayout.EndHorizontal();
+		if (GUILayout.Button("Save"))
+		{
+			SaveCustomTags();
+		}
+	}
+
+	void LoadCustomTags()
+	{
+		if (File.Exists(localDataPath + "/" + TAG_TEXT_FILE_NAME))
+		{
+			try
+			{
+				customTags = new List<string>(File.ReadAllLines(localDataPath + "/" + TAG_TEXT_FILE_NAME));
+			}
+			catch (System.Exception e)
+			{
+				WPLogger.LogError(e.Message);
+			}
+		}
+		else
+		{
+			customTags = new List<string>();
+		}
+	}
+
+	void SaveCustomTags()
+	{
+		try
+		{
+			File.WriteAllLines(localDataPath + "/" + TAG_TEXT_FILE_NAME, customTags);
+
+			CreateScriptTags();
+			AssetDatabase.Refresh();
+		}
+		catch (System.Exception e)
+		{
+			WPLogger.LogError(e.Message);
+		}
+	}
+
+	void CreateScriptTags()
+	{
+		string varLine = "\tpublic const string ";
+		List<string> fileLines = new List<string>();
+		fileLines.Add("public static class WPTag");
+		fileLines.Add("{");
+		foreach (var tag in customTags)
+		{
+			string varName = tag.Replace(' ', '_').ToUpper();
+			fileLines.Add(varLine + varName + " = \"" + tag + "\";");
+		}
+
+		fileLines.Add("}");
+		try
+		{
+			File.WriteAllLines(localDataPath + "/" + TAG_SCRIPT_FILE_NAME, fileLines);
+			AssetDatabase.ImportAsset(localDataPath + "/" + TAG_SCRIPT_FILE_NAME, ImportAssetOptions.ForceUpdate);
+		}
+		catch (System.Exception e)
+		{
+			WPLogger.LogError(e.Message);
+		}
 	}
 }

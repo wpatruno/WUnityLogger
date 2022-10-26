@@ -84,12 +84,12 @@ namespace WPLog.Debug
 				string filepath = Application.persistentDataPath + "/" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_" + FILE_NAME + EXTENSION;
 				System.IO.Directory.CreateDirectory(Application.persistentDataPath);
 				System.IO.File.WriteAllText(filepath, WPLogger.LogHistory.ToString());
-				WPLogger.Log("Log file created at -> " + filepath, WPTag.FORCE, "DEBUG");
+				WPLogger.Log("Log file created at -> " + filepath, WPMainTag.FORCE, "DEBUG");
 				if (openFolder) OpenSaveFolder();
 			}
 			catch (System.Exception e)
 			{
-				WPLogger.Error(e.Message);
+				WPLogger.LogError(e.Message);
 			}
 		}
 
