@@ -16,7 +16,7 @@ public static class WPLogger
 	/// <summary>
 	/// List of active tags (tag can be any string)
 	/// </summary>
-	static List<string> activeTags = new List<string>() { WPMainTag.FORCE, WPMainTag.INFO, WPMainTag.IMPORTANT };
+	public static List<string> activeTags { get; private set; } = new List<string>();
 	/// <summary>
 	/// Write log to Debug unity class
 	/// </summary>
@@ -45,9 +45,14 @@ public static class WPLogger
 	/// </summary>
 	public static WPLoggerEvent OnErrorLogged;
 
+
 	[UnityEngine.RuntimeInitializeOnLoadMethod]
 	static void Init()
 	{
+#if UNITY_EDITOR
+		// on editor don't apply settings if some are already existing
+		if (activeTags != null && activeTags.Count > 0) return;
+#endif
 		ApplySettings(WPLoggerData.GetCurrentSettings());
 	}
 
@@ -93,11 +98,11 @@ public static class WPLogger
 	/// <summary>
 	/// Fast log only wrap default Unity logger and history
 	/// </summary>
-	public static void LogFast(string text)
+	public static void LogFast(string message)
 	{
-		LogHistory.AppendLine(text);
-		UnityEngine.Debug.Log(text);
-		OnLogged?.Invoke(text);
+		LogHistory.AppendLine(message);
+		UnityEngine.Debug.Log(message);
+		OnLogged?.Invoke(message);
 	}
 
 	[Conditional("DEVELOPMENT_BUILD")]
@@ -106,42 +111,42 @@ public static class WPLogger
 	/// <summary>
 	/// Fast log only wrap default Unity logger
 	/// </summary>
-	/// <param name="text"></param>
-	public static void LogFast(string text, UnityEngine.Object context)
+	/// <param name="message"></param>
+	public static void LogFast(string message, UnityEngine.Object context)
 	{
-		LogHistory.AppendLine(text);
-		UnityEngine.Debug.Log(text, context);
-		OnLogged?.Invoke(text);
+		LogHistory.AppendLine(message);
+		UnityEngine.Debug.Log(message, context);
+		OnLogged?.Invoke(message);
 	}
 
 	[Conditional("DEVELOPMENT_BUILD")]
 	[Conditional("UNITY_EDITOR")]
 	[Conditional("WPLOG")]
-	public static void Log(string text, params string[] tags)
+	public static void Log(string message, params string[] tags)
 	{
 		if (tags != null && tags.Length > 0)
 		{
 			if (!HasActiveTag(tags)) return;
 			if (LogTagHeader)
-				text = "[" + System.String.Join(',', tags) + "] " + text;
+				message = "[" + System.String.Join(',', tags) + "] " + message;
 		}
 
 		if (LogTime)
 		{
-			text = "(" + GetTime() + ") " + text;
+			message = "(" + GetTime() + ") " + message;
 		}
 
 		if (LogToHistory)
 		{
-			LogHistory.AppendLine(text);
+			LogHistory.AppendLine(message);
 		}
 
 		if (LogToUnity)
 		{
-			UnityEngine.Debug.Log(text);
+			UnityEngine.Debug.Log(message);
 		}
 
-		OnLogged?.Invoke(text);
+		OnLogged?.Invoke(message);
 	}
 
 	[Conditional("DEVELOPMENT_BUILD")]
@@ -167,28 +172,28 @@ public static class WPLogger
 	/// <summary>
 	/// Logging Error always display them, even when using tags
 	/// </summary>
-	/// <param name="text"></param>
+	/// <param name="message"></param>
 	/// <param name="tags"></param>
-	public static void LogError(string text, params string[] tags)
+	public static void LogError(string message, params string[] tags)
 	{
 		if (tags != null && tags.Length > 0)
 		{
 			if (LogTagHeader)
-				text = "[" + System.String.Join(',', tags) + "] " + text;
+				message = "[" + System.String.Join(',', tags) + "] " + message;
 		}
 
 		if (LogTime)
 		{
-			text = "(" + GetTime() + ") " + text;
+			message = "(" + GetTime() + ") " + message;
 		}
 
 		if (LogToHistory)
 		{
-			LogHistory.AppendLine(text);
+			LogHistory.AppendLine(message);
 		}
 
-		UnityEngine.Debug.LogError(text);
-		OnErrorLogged?.Invoke(text);
+		UnityEngine.Debug.LogError(message);
+		OnErrorLogged?.Invoke(message);
 	}
 
 	static string GetTime()

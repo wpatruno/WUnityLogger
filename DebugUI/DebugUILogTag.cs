@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace WPLog.Debug
+namespace DebugWPLog
 {
 	public class DebugUILogTag : MonoBehaviour
 	{

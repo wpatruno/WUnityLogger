@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
-namespace WPLog.Debug
+namespace DebugWPLog
 {
 	public class DebugUI : MonoBehaviour
 	{

@@ -91,12 +91,7 @@ public partial class WPLoggerEditor : EditorWindow
 		if (mainTab == 0)
 		{
 			// Display live WPLogger Settings
-			EditorGUILayout.HelpBox("This display current WPLogger settings (Editable when running))", MessageType.Info);
-			EditorGUILayout.LabelField("LogToUnity", WPLogger.LogToUnity.ToString());
-			EditorGUILayout.LabelField("LogToHistory", WPLogger.LogToHistory.ToString());
-			EditorGUILayout.LabelField("LogTagHeader", WPLogger.LogTagHeader.ToString());
-			EditorGUILayout.LabelField("LogTime", WPLogger.LogTime.ToString());
-			EditorGUILayout.Popup("Tag List", 0, WPLogger.GetTags());
+			GUILive();
 		}
 		else if (mainTab == 2)
 		{
@@ -122,6 +117,7 @@ public partial class WPLoggerEditor : EditorWindow
 
 	void RefreshTagPopup()
 	{
+		tempIndexDefTag = 0;
 		popupTags = new List<string> { WPMainTag.INFO, WPMainTag.WARNING, WPMainTag.IMPORTANT, WPLoggerData.TAG };
 		popupTags.AddRange(customTags);
 	}

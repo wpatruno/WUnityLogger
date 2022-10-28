@@ -14,20 +14,27 @@ Secondary features :
 - Save logs to file
 - Enable/Disable log to unity console (for performance)
 - Enable/Disable log history (for performance)
+- Enable/Disable time / tags in log
 - Event on log/error
-- Option to Keep log in build
-- Debug UI Prefab to display log in scene (Usefull when in build/devBuild)
-- Show time / tags in log
+- Option to keep logs in build
+- Debug UI Prefab to display log in scene (Usefull when in build)
+
 
 ## Log stripping
-When building for release, Debug.Log are not usefull but stay in the codebase. The most common solution is to remove them at compilation. that's why I use the conditionnal attribute, available in C#, to keep logs only when conditions are met.
+When building for release, Debug.Log are not usefull but stay in the codebase. A better way of handling this is to remove them at compilation.
+
+The tool use the conditionnal attribute, available in C#, to keep logs only when conditions are met.
 
 The 3 conditions to keep logs in code are :
 - Unity Editor
 - Development build
-- "WPLOG" exist as a preprocessor directives
+- "WPLOG" exist as a preprocessor directives (Use editor window)
 
 Error logs are never stripped.
+
+## Editor Window
+Lot of options for the tool are available on the unity editor window on the top bar menu Tools>WPLogger
+
 
 ## Tags
 Tags are usefull when the project get bigger and contain lot of differents modules and tools.
@@ -38,6 +45,13 @@ A tag can be any string, but they are case sensitives and only some default tags
 
 The special tag "F" allow to force display the log even if his tags are disabled.
 
+Example:
+```
+
+```
+
+Managing active tags at runtime:
+
 ```
 void SetTagActive(string tag)   // Allow a new tag to be logged
 
@@ -46,18 +60,21 @@ void SetTagDisabled(string tag) // Disable a tag from any new log
 bool IsTagActive(string tag)    // Check if the tag is active
 ```
 
-Error logs are not affected by tags but you can use tag to make them look better.
+Error logs are not affected by tags but you can use tag for better clarity.
 
 ## Log
 The function Log used to display log with the tag system
+
 Trigger "OnLogged" event.
 ```
 //Definition
-void Log(string text, params string[] tags)
+void Log(string message, params string[] tags)
 
 //Example
-string varMyTag = "HelloTag"
-WPLogger.Log("Hello !", varMyTag, "OtherTag");
+string varMyTag = "TEST"
+WPLogger.Log(message);
+WPLogger.Log(message, tag1, tag2);
+WPLogger.Log("My message concerning AI", "AI", "NAVMESH", "ENNEMIES", varMyTag);
 ```
 
 
@@ -68,14 +85,16 @@ It only log to Unity console for better performance.
 
 This function is still stripped from build.
 
-## Error Log
+## LogError
 The function Error is used to display errors with the tag system
-Errors are not stripped from build and are always displayed even when all its tags are disabled.
+
+Errors are not stripped from build and are always displayed even when all tags are disabled.
+
 Trigger "OnErrorLogged" event.
 
 ```
 //Definition
-void Error(string text, params string[] tags)
+void Error(string message, params string[] tags)
 
 //Example
 string varMyTag = "HelloTag"

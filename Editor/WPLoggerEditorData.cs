@@ -64,11 +64,15 @@ public partial class WPLoggerEditor : EditorWindow
 	/// </summary>
 	void GUIDataCreation()
 	{
-		EditorGUILayout.HelpBox("Select a path inside Assets folder where WPLogger generated files will be created !", MessageType.Warning);
-		EditorGUILayout.HelpBox("Generate 1 Scriptable file for settings", MessageType.Info);
-		EditorGUILayout.HelpBox("(Optional) Generate 1 text file and 1 script file for custom tags", MessageType.Info);
+		EditorGUILayout.HelpBox("Select a path inside Assets folder where WPLogger generated files will be created !"
+		+ "\n\nArchitecture:"
+		+ "\n YOU_PATH/Resources/WPLoggerData"
+		+ "\n YOU_PATH/tags.txt (optionnal)"
+		+ "\n YOU_PATH/WPTag.cs (optionnal)", MessageType.Warning);
+		EditorGUILayout.HelpBox("- Generate 1 Scriptable file for logger data"
+		+ "\n- Generate 1 text file and 1 script file for custom tags (Optional)", MessageType.Info);
 		GUILayout.Space(10);
-		localDataPath = EditorGUILayout.TextField("Resources Folder Path:", localDataPath);
+		localDataPath = EditorGUILayout.TextField("Data Folder Path:", localDataPath);
 		GUILayout.Space(10);
 		if (GUILayout.Button("Create"))
 		{
@@ -81,7 +85,7 @@ public partial class WPLoggerEditor : EditorWindow
 	/// </summary>
 	void GUISettingMenu()
 	{
-		settingsTab = GUILayout.SelectionGrid(settingsTab, new string[] { "Editor", "Dev", "Release" }, 3, EditorStyles.toolbarButton);
+		settingsTab = GUILayout.SelectionGrid(settingsTab, new string[] { "Editor", "DevBuild", "Build" }, 3, EditorStyles.toolbarButton);
 
 		if (_tempSettingsTab != settingsTab)
 		{
@@ -97,10 +101,10 @@ public partial class WPLoggerEditor : EditorWindow
 	void GUISettingDisplay()
 	{
 		if (GUILayout.Button("APPLY TO LIVE", GUILayout.Width(110))) ApplyCurrentToLive();
-		EditorGUILayout.PropertyField(serialLogToUnity);
-		EditorGUILayout.PropertyField(serialLogToHistory);
-		EditorGUILayout.PropertyField(serialDisplayTagHeader);
-		EditorGUILayout.PropertyField(serialLogTime);
+		EditorGUILayout.PropertyField(serialLogToUnity, new GUIContent("LogToUnity", "Send logs to unity console (Debug.Log)"));
+		EditorGUILayout.PropertyField(serialLogToHistory, new GUIContent("LogToHistory", "Keep all logs in a string during runtime, can be accessed or saved to a file using DebugUI"));
+		EditorGUILayout.PropertyField(serialDisplayTagHeader, new GUIContent("Tag Header", "Display all tags in front of the log message"));
+		EditorGUILayout.PropertyField(serialLogTime, new GUIContent("Time Header", "Display time in front of the log message"));
 
 		EditorGUILayout.Space(10);
 		EditorGUILayout.BeginHorizontal();
@@ -184,6 +188,12 @@ public partial class WPLoggerEditor : EditorWindow
 
 	void RefreshSerialized()
 	{
+		if (loggerData == null)
+		{
+			WPLogger.LogError("Logger data is null", WPLoggerData.TAG);
+			return;
+		}
+		serializedObject = new SerializedObject(loggerData);
 		serialStripping = serializedObject.FindProperty("logMode");
 		tempStrippingMode = serialStripping.intValue;
 
@@ -231,7 +241,8 @@ public partial class WPLoggerEditor : EditorWindow
 			Directory.CreateDirectory(resPath);
 			loggerData = new WPLoggerData();
 			AssetDatabase.CreateAsset(loggerData, resPath + WPLoggerData.DATA_FILE_NAME + DATA_FILE_EXTENSION);
-			AssetDatabase.SaveAssetIfDirty(loggerData);
+			//AssetDatabase.SaveAssetIfDirty(loggerData);
+			AssetDatabase.Refresh();
 			RefreshSerialized();
 		}
 		catch (System.Exception e)
