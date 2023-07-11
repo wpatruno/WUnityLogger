@@ -24,7 +24,7 @@ public partial class WPLoggerEditor : EditorWindow
 	/// <summary>
 	/// Load WPLoggerData and setup data path
 	/// </summary>
-	public void LoadSettings()
+	public bool LoadSettings()
 	{
 		loggerData = Resources.Load<WPLoggerData>(WPLoggerData.DATA_FILE_NAME);
 		if (loggerData)
@@ -50,10 +50,12 @@ public partial class WPLoggerEditor : EditorWindow
 			{
 				localDataPath = PlayerPrefs.GetString(EDITORKEY_PATH);
 			}
+			return true;
 		}
 		else
 		{
 			localDataPath = DEFAULT_DATA_FILE_PATH;
+			return false;
 		}
 	}
 
