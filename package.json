@@ -1,0 +1,24 @@
+{
+  "name": "com.default.w3llgun",
+  "displayName": "WUnityLogger",
+  "description": "Small logger for unity with tag features",
+  "license": "MIT",
+  "version": "1.0.10",
+  "references": [
+    "WPLogger"
+  ],
+  "keywords": [
+    "logger",
+    "debug",
+    "analysis"
+  ],
+  "category": "logger",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/W3llgun/WUnityLogger.git"
+  },
+  "author": "W3llgun",
+  "samples": [
+  ],
+  "type": "sample"
+}
